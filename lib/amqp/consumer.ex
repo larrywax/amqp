@@ -44,7 +44,7 @@ defmodule AMQP.Consumer do
         {:stop, :not_ready, state}
 
       connection ->
-        {:ok, channel} = Channel.open(connection)
+        {:ok, channel} = Channel.open(connection, self())
         Process.monitor(channel.pid)
         state = %{state | channel: channel}
 
@@ -125,6 +125,22 @@ defmodule AMQP.Consumer do
     }
 
     {:noreply, handle_message(payload, meta, state)}
+  end
+
+  def handle_info(
+        {basic_consume(
+           ticket: _ticket,
+           queue: _queue,
+           consumer_tag: _consumer_tag,
+           no_local: _no_local,
+           no_ack: _no_ack,
+           exclusive: _exclusive,
+           nowait: _nowait,
+           arguments: _arguments
+         ), _pid},
+        state
+      ) do
+    {:noreply, state}
   end
 
   def handle_info({:DOWN, _, :process, _pid, reason}, state) do

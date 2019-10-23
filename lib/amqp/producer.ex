@@ -52,7 +52,7 @@ defmodule AMQP.Producer do
         {:stop, :not_ready, state}
 
       connection ->
-        {:ok, channel} = Channel.open(connection)
+        {:ok, channel} = Channel.open(connection, self())
         Process.monitor(channel.pid)
         state = %{state | channel: channel}
 
