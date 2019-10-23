@@ -330,7 +330,7 @@ defmodule AMQP.Basic do
       See the README for more information. Defaults to `[]`.
 
   """
-  @spec consume(Channel.t(), String.t(), keyword) :: {:ok, String.t()} | error
+  @spec consume(Channel.t(), String.t(), pid(), keyword) :: {:ok, String.t()} | error
   def consume(%Channel{} = chan, queue, consumer_pid, options \\ []) do
     basic_consume =
       basic_consume(
