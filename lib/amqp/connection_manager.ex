@@ -34,9 +34,7 @@ defmodule AMQP.ConnectionManager do
     rescue
       exception in _ ->
         Logger.error(
-          "Unable to connect to Broker! Retrying with #{backoff}ms backoff. Error: #{
-            inspect(exception)
-          }",
+          "Unable to connect to Broker! Retrying with #{backoff}ms backoff. Error: #{inspect(exception)}",
           error: inspect(exception)
         )
 
@@ -47,6 +45,7 @@ defmodule AMQP.ConnectionManager do
 
   def handle_info({:DOWN, _, :process, _pid, reason}, state) do
     Logger.error("Monitored connection process crashed: #{inspect(reason)}")
+    state = %{state | connection: nil}
     {:stop, :connection_exited, state}
   end
 
@@ -61,7 +60,7 @@ defmodule AMQP.ConnectionManager do
 
   def terminate(_, %__MODULE__{connection: connection}) do
     if Process.alive?(connection.pid) do
-      Connection.close(connection)
+      Process.exit(connection.pid)
     end
   end
 

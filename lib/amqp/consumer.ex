@@ -149,6 +149,7 @@ defmodule AMQP.Consumer do
 
   def handle_info({:DOWN, _, :process, _pid, reason}, state) do
     Logger.error("Monitored channel process crashed: #{inspect(reason)}")
+    state = %{state | channel: nil}
     {:stop, :channel_exited, state}
   end
 
