@@ -5,8 +5,8 @@ defmodule ChannelTest do
   alias AMQP.Channel
 
   setup do
-    {:ok, conn} = Connection.open
-    on_exit fn -> :ok = Connection.close(conn) end
+    {:ok, conn} = Connection.open(Application.get_env(:amqp, :amqp_connection))
+    on_exit(fn -> :ok = Connection.close(conn) end)
     {:ok, conn: conn}
   end
 

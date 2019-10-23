@@ -2,14 +2,16 @@ defmodule BasicTest do
   use ExUnit.Case
 
   alias AMQP.{Basic, Connection, Channel, Queue}
-  alias Channel.ReceiverManager
+  # alias Channel.ReceiverManager
 
   setup do
-    {:ok, conn} = Connection.open
+    {:ok, conn} = Connection.open(Application.get_env(:amqp, :amqp_connection))
     {:ok, chan} = Channel.open(conn)
-    on_exit fn ->
+
+    on_exit(fn ->
       :ok = Connection.close(conn)
-    end
+    end)
+
     {:ok, conn: conn, chan: chan}
   end
 
@@ -26,11 +28,7 @@ defmodule BasicTest do
 
     Basic.publish(meta[:chan], exchange, routing_key, payload, mandatory: true)
 
-    assert_receive {:basic_return,
-                     ^payload,
-                     %{routing_key: ^routing_key,
-                       exchange: ^exchange,
-                       reply_text: "NO_ROUTE"}}
+    assert_receive {{:"basic.return", 312, "NO_ROUTE", ^exchange, ^routing_key}, {:amqp_msg, _, ^payload}}
 
     :ok = Basic.cancel_return(meta[:chan])
 
@@ -42,24 +40,25 @@ defmodule BasicTest do
   describe "basic consume" do
     setup meta do
       {:ok, %{queue: queue}} = Queue.declare(meta[:chan])
-      on_exit fn ->
+
+      on_exit(fn ->
         if Process.alive?(meta[:chan].pid) do
           Queue.delete(meta[:chan], queue)
           Channel.close(meta[:chan])
         end
-      end
+      end)
 
       {:ok, Map.put(meta, :queue, queue)}
     end
 
     test "consumer receives :basic_consume_ok message", meta do
-      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue])
-      assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
+      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue], self())
+      assert_receive {:"basic.consume_ok", ^consumer_tag}
       {:ok, ^consumer_tag} = Basic.cancel(meta[:chan], consumer_tag)
     end
 
     test "consumer receives :basic_deliver message", meta do
-      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue])
+      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue], self())
 
       payload = "foo"
       correlation_id = "correlation_id"
@@ -68,37 +67,34 @@ defmodule BasicTest do
 
       Basic.publish(meta[:chan], exchange, routing_key, payload, correlation_id: correlation_id)
 
-      assert_receive {:basic_deliver,
-                      ^payload,
-                      %{consumer_tag: ^consumer_tag,
-                        correlation_id: ^correlation_id,
-                        routing_key: ^routing_key}}
+      assert_receive {{:"basic.deliver", ^consumer_tag, _, _, ^exchange, ^routing_key},
+                      {:amqp_msg, {:P_basic, _, _, _, _, _, ^correlation_id, _, _, _, _, _, _, _, _}, ^payload}}
 
       {:ok, ^consumer_tag} = Basic.cancel(meta[:chan], consumer_tag)
     end
 
     test "consumer receives :basic_cancel_ok message", meta do
-      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue])
+      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue], self())
       {:ok, ^consumer_tag} = Basic.cancel(meta[:chan], consumer_tag)
 
-      assert_receive {:basic_cancel_ok, %{consumer_tag: ^consumer_tag}}
+      assert_receive {:"basic.cancel_ok", ^consumer_tag}
     end
 
     test "consumer receives :basic_cancel message", meta do
-      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue])
+      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue], self())
       {:ok, _} = Queue.delete(meta[:chan], meta[:queue])
 
-      assert_receive {:basic_cancel, %{consumer_tag: ^consumer_tag}}
+      assert_receive {:"basic.cancel", ^consumer_tag, true}
     end
 
     test "cancel returns {:ok, consumer_tag}", meta do
-      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue])
+      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue], self())
 
       assert {:ok, ^consumer_tag} = Basic.cancel(meta[:chan], consumer_tag)
     end
 
     test "cancel exits the process when channel is closed", meta do
-      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue])
+      {:ok, consumer_tag} = Basic.consume(meta[:chan], meta[:queue], self())
 
       Channel.close(meta[:chan])
 
@@ -106,12 +102,12 @@ defmodule BasicTest do
       assert {:normal, _} = catch_exit(Basic.cancel(meta[:chan], consumer_tag))
     end
 
-    test "removes a receiver when queue does not exist", meta do
-      catch_exit(Basic.consume(meta[:chan], "non-existent-queue"))
+    # test "removes a receiver when queue does not exist", meta do
+    #   catch_exit(Basic.consume(meta[:chan], "non-existent-queue"))
 
-      :timer.sleep(100)
-      receiver = ReceiverManager.get_receiver(meta[:chan].pid, self())
-      refute receiver
-    end
+    #   :timer.sleep(100)
+    #   receiver = ReceiverManager.get_receiver(meta[:chan].pid, self())
+    #   refute receiver
+    # end
   end
 end

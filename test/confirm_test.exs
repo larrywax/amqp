@@ -6,12 +6,14 @@ defmodule ConfirmTest do
   alias AMQP.Confirm
 
   setup do
-    {:ok, conn} = Connection.open
+    {:ok, conn} = Connection.open(Application.get_env(:amqp, :amqp_connection))
     {:ok, chan} = Channel.open(conn)
     :ok = Confirm.select(chan)
-    on_exit fn ->
+
+    on_exit(fn ->
       :ok = Connection.close(conn)
-    end
+    end)
+
     {:ok, chan: chan}
   end
 
@@ -27,7 +29,7 @@ defmodule ConfirmTest do
       seq_no = Confirm.next_publish_seqno(ctx[:chan])
       :ok = AMQP.Basic.publish(ctx[:chan], "", "", "foo")
 
-      assert_receive {:basic_ack, ^seq_no, false}
+      assert_receive {:"basic.ack", ^seq_no, false}
       :ok = Confirm.unregister_handler(ctx[:chan])
     end
   end

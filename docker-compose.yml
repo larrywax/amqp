@@ -1,0 +1,19 @@
+version: '2'
+services:
+  web:
+    build: .
+    volumes:
+      - .:/$PWD
+      - ~/.cache:/home/app/.cache
+    working_dir: $PWD
+    links:
+      - rabbit
+
+  rabbit:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_VHOST: /
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "23556:15672"

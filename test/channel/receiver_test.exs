@@ -1,85 +1,87 @@
 defmodule AMQP.Channel.ReceiverTest do
-  use ExUnit.Case
+  # use ExUnit.Case
 
-  alias AMQP.{Basic, Connection, Channel, Queue}
-  alias Channel.ReceiverManager
+  # alias AMQP.{Basic, Connection, Channel, Queue}
+  # alias Channel.ReceiverManager
 
-  setup do
-    {:ok, conn} = Connection.open()
-    {:ok, chan} = Channel.open(conn)
-    {:ok, %{queue: queue}} = Queue.declare(chan)
+  # setup do
+  #   {:ok, conn} = Connection.open()
+  #   {:ok, chan} = Channel.open(conn)
+  #   {:ok, %{queue: queue}} = Queue.declare(chan)
 
-    on_exit(fn ->
-      Queue.delete(chan, queue)
-      :ok = Channel.close(chan)
-      :ok = Connection.close(conn)
-    end)
-    {:ok, conn: conn, chan: chan, queue: queue}
-  end
+  #   on_exit(fn ->
+  #     Queue.delete(chan, queue)
+  #     :ok = Channel.close(chan)
+  #     :ok = Connection.close(conn)
+  #   end)
 
-  test "closes the receiver when channel is closed", meta do
-    {:ok, chan} = Channel.open(meta.conn)
+  #   {:ok, conn: conn, chan: chan, queue: queue}
+  # end
 
-    {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
-    assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
+  # test "closes the receiver when channel is closed", meta do
+  #   {:ok, chan} = Channel.open(meta.conn)
 
-    receiver = ReceiverManager.get_receiver(chan.pid, self())
-    assert Process.alive?(receiver.pid)
+  #   {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
+  #   assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
 
-    :ok = Channel.close(chan)
-    :timer.sleep(100)
-    refute ReceiverManager.get_receiver(chan.pid, self())
-    refute Process.alive?(receiver.pid)
-  end
+  #   receiver = ReceiverManager.get_receiver(chan.pid, self())
+  #   assert Process.alive?(receiver.pid)
 
-  test "closes the receiver when the client is closed", meta do
-    {:ok, chan} = Channel.open(meta.conn)
+  #   :ok = Channel.close(chan)
+  #   :timer.sleep(100)
+  #   refute ReceiverManager.get_receiver(chan.pid, self())
+  #   refute Process.alive?(receiver.pid)
+  # end
 
-    task = Task.async(fn ->
-      {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
-      assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
-      ReceiverManager.get_receiver(chan.pid, self())
-    end)
+  # test "closes the receiver when the client is closed", meta do
+  #   {:ok, chan} = Channel.open(meta.conn)
 
-    receiver = Task.await(task)
-    :timer.sleep(100)
-    refute Process.alive?(task.pid)
-    refute Process.alive?(receiver.pid)
-    refute ReceiverManager.get_receiver(chan.pid, task.pid)
+  #   task =
+  #     Task.async(fn ->
+  #       {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
+  #       assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
+  #       ReceiverManager.get_receiver(chan.pid, self())
+  #     end)
 
-    :ok = Channel.close(chan)
-  end
+  #   receiver = Task.await(task)
+  #   :timer.sleep(100)
+  #   refute Process.alive?(task.pid)
+  #   refute Process.alive?(receiver.pid)
+  #   refute ReceiverManager.get_receiver(chan.pid, task.pid)
 
-  test "closes the receiver when all handers are cancelled", meta do
-    {:ok, chan} = Channel.open(meta.conn)
+  #   :ok = Channel.close(chan)
+  # end
 
-    {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
-    assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
+  # test "closes the receiver when all handers are cancelled", meta do
+  #   {:ok, chan} = Channel.open(meta.conn)
 
-    receiver = ReceiverManager.get_receiver(chan.pid, self())
-    assert Process.alive?(receiver.pid)
+  #   {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
+  #   assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
 
-    {:ok, ^consumer_tag} = Basic.cancel(chan, consumer_tag)
-    :timer.sleep(100)
-    refute ReceiverManager.get_receiver(chan.pid, self())
-    refute Process.alive?(receiver.pid)
+  #   receiver = ReceiverManager.get_receiver(chan.pid, self())
+  #   assert Process.alive?(receiver.pid)
 
-    :ok = Channel.close(chan)
-  end
+  #   {:ok, ^consumer_tag} = Basic.cancel(chan, consumer_tag)
+  #   :timer.sleep(100)
+  #   refute ReceiverManager.get_receiver(chan.pid, self())
+  #   refute Process.alive?(receiver.pid)
 
-  test "unregisters the receiver when the register process dies", meta do
-    {:ok, chan} = Channel.open(meta.conn)
+  #   :ok = Channel.close(chan)
+  # end
 
-    {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
-    assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
+  # test "unregisters the receiver when the register process dies", meta do
+  #   {:ok, chan} = Channel.open(meta.conn)
 
-    receiver = ReceiverManager.get_receiver(chan.pid, self())
-    assert Process.alive?(receiver.pid)
+  #   {:ok, consumer_tag} = Basic.consume(chan, meta.queue)
+  #   assert_receive {:basic_consume_ok, %{consumer_tag: ^consumer_tag}}
 
-    Process.exit(receiver.pid, :normal)
-    :timer.sleep(100)
-    refute ReceiverManager.get_receiver(chan.pid, self())
+  #   receiver = ReceiverManager.get_receiver(chan.pid, self())
+  #   assert Process.alive?(receiver.pid)
 
-    :ok = Channel.close(chan)
-  end
+  #   Process.exit(receiver.pid, :normal)
+  #   :timer.sleep(100)
+  #   refute ReceiverManager.get_receiver(chan.pid, self())
+
+  #   :ok = Channel.close(chan)
+  # end
 end
