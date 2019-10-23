@@ -63,8 +63,12 @@ defmodule AMQP.Consumer do
   end
 
   # Sent by the broker when the consumer is unexpectedly cancelled (such as after a queue deletion)
-  def handle_info({:"basic.cancel", _consumer_tag}, state) do
+  def handle_info({:server_cancel, basic_cancel(consumer_tag: _consumer_tag, nowait: _nowait)}, state) do
     {:stop, :basic_cancel, state}
+  end
+
+  def handle_info({basic_cancel(consumer_tag: _consumer_tag, nowait: _nowait)}, state) do
+    {:noreply, state}
   end
 
   # Confirmation sent by the broker to the consumer process after a Basic.cancel

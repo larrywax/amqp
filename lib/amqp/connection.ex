@@ -193,7 +193,7 @@ defmodule AMQP.Connection do
   """
   @spec close(t) :: :ok | {:error, any}
   def close(conn) do
-    case :amqp_connection.close(conn.pid) do
+    case :amqp_connection.close(conn.pid, 5_000) do
       :ok -> :ok
       error -> {:error, error}
     end
