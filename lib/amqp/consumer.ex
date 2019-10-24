@@ -155,7 +155,6 @@ defmodule AMQP.Consumer do
 
   def handle_info({:EXIT, _pid, :normal}, state), do: {:stop, :EXIT, state}
 
-  def handle_info({:error, reason, _pid}, state), do: {:stop, reason, state}
 
   def handle_info(message, state) do
     Logger.warn("Unknown message received #{inspect(message)}")
