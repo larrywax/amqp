@@ -10,8 +10,7 @@ defmodule AMQP.Helper do
   end
 
   def consumers_supervisor_configuration(handlers_conf) do
-    handlers_conf
-    |> Enum.map(&Supervisor.child_spec({AMQP.Gen.Consumer, &1}, id: UUID.uuid1()))
+    Enum.map(handlers_conf, &Supervisor.child_spec({AMQP.Gen.Consumer, &1}, id: UUID.uuid1()))
   end
 
   def producer_supervisor_configuration(producer_conf) do
