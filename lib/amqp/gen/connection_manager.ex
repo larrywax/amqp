@@ -1,4 +1,4 @@
-defmodule AMQP.ConnectionManager do
+defmodule AMQP.Gen.ConnectionManager do
   @moduledoc """
   Generic implementation of AMQP consumer
   """

@@ -6,16 +6,16 @@ defmodule AMQP.Helper do
   alias AMQP.{Exchange, Queue}
 
   def manager_supervisor_configuration(config) do
-    {AMQP.ConnectionManager, %{connection_params: config}}
+    {AMQP.Gen.ConnectionManager, %{connection_params: config}}
   end
 
   def consumers_supervisor_configuration(handlers_conf) do
     handlers_conf
-    |> Enum.map(&Supervisor.child_spec({AMQP.Consumer, &1}, id: UUID.uuid1()))
+    |> Enum.map(&Supervisor.child_spec({AMQP.Gen.Consumer, &1}, id: UUID.uuid1()))
   end
 
   def producer_supervisor_configuration(producer_conf) do
-    {AMQP.Producer, producer_conf}
+    {AMQP.Gen.Producer, producer_conf}
   end
 
   def declare(

@@ -1,4 +1,4 @@
-defmodule AMQP.Consumer do
+defmodule AMQP.Gen.Consumer do
   @moduledoc """
   Generic implementation of AMQP consumer
   """
@@ -17,7 +17,7 @@ defmodule AMQP.Consumer do
 
   @type state() :: %__MODULE__{}
 
-  @callback setup(Channel.t()) :: {:ok, map()} | {:error, any()}
+  @callback setup(Channel.t(), String.t(), pid()) :: {:ok, map()} | {:error, any()}
   @callback handle_message(any(), map(), map()) :: {:ok, map()} | {:error, any()}
 
   def start_link(opts) do
@@ -161,7 +161,7 @@ defmodule AMQP.Consumer do
   end
 
   def handle_info({:DOWN, _, :process, _pid, reason}, state) do
-    Logger.info("Monitored channel process crashed: #{inspect(reason)}")
+    Logger.info("Monitored channel process crashed: #{inspect(reason)}. Restarting...")
     state = %{state | channel: nil}
     {:stop, :channel_exited, state}
   end

@@ -1,4 +1,4 @@
-defmodule AMQP.Producer do
+defmodule AMQP.Gen.Producer do
   @moduledoc """
   Generic implementation of AMQP producer
   """
@@ -22,6 +22,12 @@ defmodule AMQP.Producer do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  def init(opts) do
+    state = struct(__MODULE__, opts)
+    Process.send(self(), :setup, [])
+    {:ok, state}
+  end
+
   @spec publish(String.t(), String.t(), String.t(), Keyword.t()) :: :ok | :error
   def publish(name, routing_key, payload, options \\ []) do
     case GenServer.call(__MODULE__, {:publish, {name, routing_key, payload, options}}) do
@@ -35,12 +41,6 @@ defmodule AMQP.Producer do
   end
 
   # Callbacks
-
-  def init(opts) do
-    state = struct(__MODULE__, opts)
-    Process.send(self(), :setup, [])
-    {:ok, state}
-  end
 
   def handle_info(
         :setup,
@@ -66,8 +66,20 @@ defmodule AMQP.Producer do
     end
   end
 
+  def handle_info({_ref, {:ok, _port, _pid}}, state) do
+    Logger.debug("AMQP socket probably restarted by underlying library")
+    {:noreply, state}
+  end
+
+  # Error handling
+
+  def handle_info({_ref, {:error, :no_socket, _pid}}, state) do
+    Logger.debug("AMQP socket not found")
+    {:noreply, state}
+  end
+
   def handle_info({:DOWN, _, :process, _pid, reason}, state) do
-    Logger.error("Monitored channel process crashed: #{inspect(reason)}")
+    Logger.info("Monitored channel process crashed: #{inspect(reason)}. Restarting...")
     {:stop, :channel_exited, state}
   end
 
