@@ -68,7 +68,7 @@ defmodule AMQP.Consumer do
   end
 
   def handle_info({basic_cancel(consumer_tag: _consumer_tag, nowait: _nowait)}, state) do
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   # Confirmation sent by the broker to the consumer process after a Basic.cancel
