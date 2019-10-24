@@ -38,7 +38,7 @@ defmodule AMQP.Consumer do
           handler_module: handler_module
         } = state
       ) do
-    case GenServer.call(AMQPConnectionManager, :get_connection) do
+    GenServer.call AMQPConnectionManager, :get_connection do
       nil ->
         :timer.sleep(backoff)
         {:stop, :not_ready, state}
@@ -63,11 +63,12 @@ defmodule AMQP.Consumer do
   end
 
   # Sent by the broker when the consumer is unexpectedly cancelled (such as after a queue deletion)
-  def handle_info({:server_cancel, basic_cancel(consumer_tag: _consumer_tag, nowait: _nowait)}, state) do
+  def handle_info({:server_cancel, {:"basic.cancel", _consumer_tag, _nowait}}, state) do
     {:stop, :basic_cancel, state}
   end
 
-  def handle_info({basic_cancel(consumer_tag: _consumer_tag, nowait: _nowait)}, state) do
+  # Received if we call Basic.cancel
+  def handle_info({:"basic.cancel", _consumer_tag, _nowait}, state) do
     {:noreply, state, :hibernate}
   end
 
@@ -147,14 +148,25 @@ defmodule AMQP.Consumer do
     {:noreply, state}
   end
 
+  def handle_info({_ref, {:ok, _port, _pid}}, state) do
+    Logger.debug("AMQP socket probably restarted by underlying library")
+    {:noreply, state}
+  end
+
+  # Error handling
+
+  def handle_info({_ref, {:error, :no_socket, _pid}}, state) do
+    Logger.debug("AMQP socket not found")
+    {:noreply, state}
+  end
+
   def handle_info({:DOWN, _, :process, _pid, reason}, state) do
-    Logger.error("Monitored channel process crashed: #{inspect(reason)}")
+    Logger.info("Monitored channel process crashed: #{inspect(reason)}")
     state = %{state | channel: nil}
     {:stop, :channel_exited, state}
   end
 
   def handle_info({:EXIT, _pid, :normal}, state), do: {:stop, :EXIT, state}
-
 
   def handle_info(message, state) do
     Logger.warn("Unknown message received #{inspect(message)}")
@@ -169,14 +181,12 @@ defmodule AMQP.Consumer do
     end
   end
 
+  # Private functions
+
   defp handle_message(
          message,
          %{delivery_tag: tag, redelivered: redelivered} = meta,
-         %__MODULE__{
-           handler_module: handler_module,
-           handler_state: handler_state,
-           backoff: backoff
-         } = state
+         %__MODULE__{handler_module: handler_module, handler_state: handler_state, backoff: backoff} = state
        ) do
     try do
       {:ok, handler_state} = handler_module.handle_message(message, meta, handler_state)
